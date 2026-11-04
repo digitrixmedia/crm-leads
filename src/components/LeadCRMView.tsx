@@ -20,6 +20,7 @@ import {
 import { Lead, LeadStatus, IntentGrade, ClientProfile, DateFilter } from '../types';
 import { formatINRPipeline, formatINR } from '../utils/formatters';
 import { isDateInRange, formatDateDisplay } from '../utils/dateUtils';
+import { isLeadMissingOnCrm } from '../utils/googleSheets';
 
 interface LeadCRMViewProps {
   leads: Lead[];
@@ -44,6 +45,9 @@ export const LeadCRMView: React.FC<LeadCRMViewProps> = ({
   const [selectedGrade, setSelectedGrade] = useState<'all' | IntentGrade>('all');
   const [selectedStatus, setSelectedStatus] = useState<'all' | LeadStatus>('all');
   const [crmDateScope, setCrmDateScope] = useState<'filtered' | 'all'>('filtered');
+  const [filterMissingOnly, setFilterMissingOnly] = useState(false);
+
+  const countMissingOnCrm = leads.filter(isLeadMissingOnCrm).length;
 
   const filteredLeads = leads.filter((lead) => {
     const q = searchQuery.trim().toLowerCase();
@@ -64,8 +68,9 @@ export const LeadCRMView: React.FC<LeadCRMViewProps> = ({
     const matchesGrade = selectedGrade === 'all' || lead.intentGrade === selectedGrade;
     const matchesStatus = selectedStatus === 'all' || lead.salesStatus === selectedStatus;
     const matchesDate = crmDateScope === 'all' || dateFilter.preset === 'all' || isDateInRange(lead.submittedAt, dateFilter);
+    const matchesMissing = !filterMissingOnly || isLeadMissingOnCrm(lead);
 
-    return matchesSearch && matchesGrade && matchesStatus && matchesDate;
+    return matchesSearch && matchesGrade && matchesStatus && matchesDate && matchesMissing;
   });
 
   const gradeACount = filteredLeads.filter(l => l.intentGrade === 'A').length;
@@ -373,8 +378,50 @@ export const LeadCRMView: React.FC<LeadCRMViewProps> = ({
               {leads.filter(l => l.salesStatus === 'New' || l.salesStatus === 'Contacted').length}
             </span>
           </button>
+
+          {/* Missing on CRM Filter Tab */}
+          <button
+            onClick={() => {
+              setFilterMissingOnly(!filterMissingOnly);
+              if (!filterMissingOnly) setSelectedStatus('all');
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 cursor-pointer ${
+              filterMissingOnly
+                ? 'bg-rose-500 text-white font-bold shadow-md shadow-rose-500/20'
+                : countMissingOnCrm > 0
+                ? 'bg-rose-950/40 text-rose-300 hover:bg-rose-900/60 border border-rose-800/60'
+                : 'bg-neutral-950 text-neutral-400 border border-neutral-800'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+            <span>Missing on CRM</span>
+            <span className={`px-1.5 py-0.2 text-[10px] rounded-full font-mono ${filterMissingOnly ? 'bg-white/20 text-white' : 'bg-rose-500/20 text-rose-300'}`}>
+              {countMissingOnCrm}
+            </span>
+          </button>
         </div>
       </div>
+
+      {/* Missing on CRM Alert Banner */}
+      {countMissingOnCrm > 0 && !filterMissingOnly && (
+        <div className="rounded-xl bg-rose-950/40 border border-rose-500/40 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-200">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>
+              <strong>CRM Data Audit:</strong> {countMissingOnCrm} leads have the remark <em>"No data on CRM"</em> under detailed comments in the spreadsheet. These leads exist in the media campaigns but have not been synced into the CRM.
+            </span>
+          </div>
+          <button
+            onClick={() => {
+              setFilterMissingOnly(true);
+              setSelectedStatus('all');
+            }}
+            className="px-3 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/30 text-xs font-mono whitespace-nowrap self-start sm:self-auto cursor-pointer"
+          >
+            View {countMissingOnCrm} Missing Leads →
+          </button>
+        </div>
+      )}
 
       {/* Lag Alert Banner */}
       {uncontactedCount > 0 && (
@@ -436,21 +483,28 @@ export const LeadCRMView: React.FC<LeadCRMViewProps> = ({
               </thead>
               <tbody className="divide-y divide-neutral-800/60 font-mono">
                 {filteredLeads.map((lead) => {
+                  const missingOnCrm = isLeadMissingOnCrm(lead);
                   return (
                     <tr
                       key={lead.id}
-                      className="hover:bg-neutral-800/40 transition-colors group cursor-pointer"
+                      className={`hover:bg-neutral-800/40 transition-colors group cursor-pointer ${missingOnCrm ? 'bg-rose-950/15' : ''}`}
                       onClick={() => onSelectLead(lead)}
                     >
                       {/* Name & Contact */}
                       <td className="py-3.5 px-4 font-sans">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-neutral-100 text-sm group-hover:text-amber-400 transition-colors">
                             {lead.fullName}
                           </span>
                           {lead.verifiedPhone && (
                             <span title="Meta Form Verified Phone Number" className="text-emerald-400">
                               <ShieldCheck className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+                          {missingOnCrm && (
+                            <span title="Remark indicates missing on CRM" className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-mono font-medium">
+                              <AlertTriangle className="w-3 h-3 text-rose-400" />
+                              <span>No Data on CRM</span>
                             </span>
                           )}
                         </div>

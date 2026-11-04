@@ -48,6 +48,7 @@ export interface Lead {
   notes: string;
   detailedComment?: string;
   estimatedValue: number;
+  isMissingOnCrm?: boolean;
 }
 
 export interface Campaign {

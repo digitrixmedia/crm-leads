@@ -22,7 +22,7 @@ import {
 import { ClientProfile, Campaign, AdCreative, DailyMetric, Lead, SalesRep, DateFilter } from '../types';
 import { formatINR, formatINRPipeline, formatINRCurrency } from '../utils/formatters';
 import { isDateInRange, getDateFilterMultiplier } from '../utils/dateUtils';
-import { deriveDailyMetricsFromLeads } from '../utils/googleSheets';
+import { deriveDailyMetricsFromLeads, isLeadMissingOnCrm } from '../utils/googleSheets';
 
 interface ExecutiveOverviewProps {
   client: ClientProfile;
@@ -83,6 +83,11 @@ export const ExecutiveOverview: React.FC<ExecutiveOverviewProps> = ({
     .reduce((acc, l) => acc + l.estimatedValue, 0);
 
   const cplSavingsPercent = avgCpl > 0 ? Math.round(((client.targetCpl - avgCpl) / client.targetCpl) * 100) : 0;
+
+  // "No Data on CRM" Discrepancy Counting
+  const missingOnCrmLeads = filteredLeads.filter(isLeadMissingOnCrm);
+  const countMissingOnCrm = missingOnCrmLeads.length;
+  const missingPipelineValue = missingOnCrmLeads.reduce((acc, l) => acc + l.estimatedValue, 0);
 
   // Chart data points dynamically updated based on active date-filtered leads
   const dynamicMetrics = deriveDailyMetricsFromLeads(filteredLeads, totalSpend, client.targetCpl);
@@ -205,6 +210,33 @@ export const ExecutiveOverview: React.FC<ExecutiveOverviewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* CRM Discrepancy Banner: No Data on CRM */}
+      {countMissingOnCrm > 0 && (
+        <div className="rounded-xl bg-rose-950/40 border border-rose-500/40 p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-rose-200">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <div>
+              <strong className="text-rose-100 font-semibold">{countMissingOnCrm} Leads Marked "No data on CRM" in Spreadsheet</strong>
+              <span className="text-rose-300 ml-2 hidden sm:inline">· Untracked pipeline opportunity: {formatINRPipeline(missingPipelineValue)}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onNavigateTab('reporting')}
+              className="px-2.5 py-1 rounded bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/30 text-[11px] font-mono whitespace-nowrap cursor-pointer"
+            >
+              Audit in Report →
+            </button>
+            <button
+              onClick={() => onNavigateTab('crm')}
+              className="px-2.5 py-1 rounded bg-neutral-800 hover:bg-neutral-700 text-neutral-200 border border-neutral-700 text-[11px] font-mono whitespace-nowrap cursor-pointer"
+            >
+              Filter in CRM →
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 6 Core KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

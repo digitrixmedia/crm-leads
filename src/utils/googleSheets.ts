@@ -645,6 +645,18 @@ export function convertSheetRowsToLeads(
     else if (score >= 50) intentGrade = 'C';
     else intentGrade = 'D';
 
+    const isMissingOnCrm = (
+      detailedComment.toLowerCase().includes('no data on crm') ||
+      detailedComment.toLowerCase().includes('no data in crm') ||
+      detailedComment.toLowerCase().includes('missing on crm') ||
+      detailedComment.toLowerCase().includes('missing in crm') ||
+      detailedComment.toLowerCase().includes('not on crm') ||
+      detailedComment.toLowerCase().includes('no crm data') ||
+      detailedComment.toLowerCase().includes('no crm') ||
+      cleanStatusLower.includes('no data on crm') ||
+      cleanStatusLower.includes('no data in crm')
+    );
+
     return {
       id: `lead-sheet-${idx + 1}`,
       fullName,
@@ -670,8 +682,28 @@ export function convertSheetRowsToLeads(
       detailedComment: detailedComment || undefined,
       notes: detailedComment || `Imported live from Google Sheet row #${idx + 2}.`,
       estimatedValue,
+      isMissingOnCrm,
     };
   });
+}
+
+/**
+ * Checks if a lead has "no data on crm" in comments, notes, or status
+ */
+export function isLeadMissingOnCrm(lead: Lead): boolean {
+  if (lead.isMissingOnCrm) return true;
+  const text = `${lead.detailedComment || ''} ${lead.notes || ''} ${lead.salesStatus || ''}`.toLowerCase();
+  return (
+    text.includes('no data on crm') ||
+    text.includes('no data in crm') ||
+    text.includes('missing on crm') ||
+    text.includes('missing in crm') ||
+    text.includes('not in crm') ||
+    text.includes('not on crm') ||
+    text.includes('no crm data') ||
+    text.includes('no crm entry') ||
+    text.includes('not found in crm')
+  );
 }
 
 /**
@@ -818,5 +850,7 @@ Tarun Tandon,+91 98188 48209,tarun@tandon.com,₹2 Cr - ₹3 Cr,Exploring option
 Tanvi Jhaveri,+91 98202 74011,tjhaveri@diamonds.com,₹3 Cr - ₹5 Cr,Ready within 30 days,Waterfront 4-BHK Villa,Site Visit,5.6,Rohan Mehra,41000000,VIP Seafront Villas · High-Intent Form,2026-10-26,"Requested site visit with architect on Saturday afternoon. Specific requirement for Vaastu compliant entrance."
 Girish Menon,+91 98451 40299,gmenon@menon.in,₹5 Cr+,1 - 3 months,Harbor Penthouse,Positive,18.0,Ananya Sharma,48000000,Skyline Penthouses · Instagram Reels,2026-10-25,"NRI returning from Dubai in December. Wants video walkthrough of the show penthouse."
 Shalini Oberoi,+91 98110 30988,s.oberoi@hospitality.com,₹3 Cr - ₹5 Cr,Ready within 30 days,Waterfront 4-BHK Villa,Site Visit,7.2,Rohan Mehra,36000000,NRI & Waterfront Investors · Carousel,2026-10-24,"Completed site demo. Very satisfied with floor layout. Negotiation on club membership fee pending."
-Sanjay Ruia,+91 98205 84022,s.ruia@international.com,₹5 Cr+,Ready within 30 days,Harbor Penthouse,Won / Closed,4.1,Rohan Mehra,49500000,Skyline Penthouses · Instagram Reels,2026-10-23,"Final agreement signed and registered. Token payment processed."`;
+Sanjay Ruia,+91 98205 84022,s.ruia@international.com,₹5 Cr+,Ready within 30 days,Harbor Penthouse,Won / Closed,4.1,Rohan Mehra,49500000,Skyline Penthouses · Instagram Reels,2026-10-23,"Final agreement signed and registered. Token payment processed."
+Anil Kothari,+91 98203 19482,anil.kothari@textiles.in,₹3 Cr - ₹5 Cr,Ready within 30 days,Waterfront 4-BHK Villa,New,,Unassigned,35000000,VIP Seafront Villas · High-Intent Form,2026-10-22,"Inquiry submitted through Meta Lead Ad. No data on CRM. Missing in sales database, urgent follow up required."
+Deepak Verma,+91 98119 44021,deepak.v@capital.in,₹2.5 Cr - ₹3.5 Cr,1 - 3 months,Luxury 3-BHK Residence,New,,Unassigned,28000000,VIP Seafront Villas · High-Intent Form,2026-10-21,"Lead received via Instagram Reels Form. No data on CRM. Need to push lead info into sales pipeline."`;
 }
